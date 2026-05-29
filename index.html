@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Суфлёр — Защита PayRing DIY</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Spline+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2E9DB; --paper2:#FBF5EA; --card:#FCF8F0;
+    --ink:#272018; --ink-soft:#4A4035; --muted:#8A7E6E;
+    --accent:#1C6E66; --accent-d:#0F4742; --hot:#C45A2C;
+    --line:#E2D6C2; --slidebg:#123F3A; --slideink:#F4ECDB;
+    --shadow:0 18px 40px -22px rgba(39,32,24,.45);
+    --serif:"Fraunces",Georgia,serif;
+    --sans:"Spline Sans",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--sans);color:var(--ink);
+    background:
+      radial-gradient(1100px 600px at 88% -12%, rgba(28,110,102,.10), transparent 60%),
+      radial-gradient(800px 500px at -8% 112%, rgba(196,90,44,.10), transparent 55%),
+      var(--paper);
+    height:100vh;display:flex;flex-direction:column;overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.035;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    position:relative;z-index:5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    padding:10px clamp(14px,2.5vw,28px);background:linear-gradient(var(--paper2),rgba(242,233,219,.9));
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;flex-direction:column;line-height:1}
+  .brand b{font-family:var(--serif);font-weight:900;font-size:1.2rem;letter-spacing:-.01em}
+  .brand span{font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+  .spacer{flex:1}
+  .counter{font-family:var(--serif);font-weight:600;font-size:1rem;color:var(--ink-soft);white-space:nowrap}
+
+  .timer{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 10px;box-shadow:var(--shadow)}
+  .timer small{font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+  .clock{font-family:var(--serif);font-weight:600;font-size:1.25rem;font-variant-numeric:tabular-nums;min-width:74px;text-align:center}
+  .clock.warn{color:var(--hot)} .clock.over{color:#fff;background:var(--hot);border-radius:6px;padding:0 6px}
+  .tbtn{border:none;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:.75rem;padding:7px 11px;border-radius:9px;background:var(--accent);color:#fff;transition:.15s}
+  .tbtn:hover{background:var(--accent-d)}
+  .tbtn.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)} .tbtn.ghost:hover{background:#0000000a}
+
+  .views{display:flex;gap:5px;align-items:center}
+  .views .lbl{font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+  .chip{cursor:pointer;user-select:none;font-size:.74rem;font-weight:600;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted);transition:.15s}
+  .chip.on{background:var(--ink);color:var(--paper2);border-color:var(--ink)}
+
+  /* ---------- LAYOUT ---------- */
+  .layout{flex:1;display:grid;grid-template-columns:212px 1fr 330px;min-height:0;position:relative;z-index:1}
+
+  /* MENU */
+  .menu{border-right:1px solid var(--line);overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:5px;background:rgba(251,245,234,.5)}
+  .menu .mh{font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);padding:4px 8px 6px}
+  .mitem{display:flex;align-items:center;gap:10px;cursor:pointer;border:none;background:transparent;text-align:left;padding:9px 10px;border-radius:10px;transition:.13s;font-family:var(--sans);width:100%}
+  .mitem:hover{background:#0000000a}
+  .mitem.on{background:var(--accent);box-shadow:var(--shadow)}
+  .mitem.on .mn,.mitem.on .mt{color:#fff}
+  .mitem .mn{font-family:var(--serif);font-weight:900;font-size:1rem;color:var(--accent);min-width:22px}
+  .mitem.done .mn{opacity:.55}
+  .mitem .mt{font-size:.82rem;font-weight:500;color:var(--ink-soft);line-height:1.2}
+
+  /* CENTER — SLIDE */
+  .center{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(14px,2.5vw,30px);overflow-y:auto}
+  .slide{
+    width:100%;max-width:760px;aspect-ratio:16/9;border-radius:18px;position:relative;overflow:hidden;
+    background:radial-gradient(120% 130% at 0% 0%, #195049, var(--slidebg));
+    color:var(--slideink);box-shadow:0 30px 60px -28px rgba(15,40,37,.7);
+    padding:clamp(20px,3.4vw,40px);display:flex;flex-direction:column;justify-content:center;
+    border:1px solid #0c302c;
+  }
+  .slide::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(196,90,44,.32),transparent 70%);pointer-events:none}
+  .slide .badge{position:absolute;top:14px;right:20px;font-family:var(--serif);font-weight:900;font-size:2.6rem;color:rgba(244,236,219,.14);line-height:1}
+  .slide .stitle{font-family:var(--serif);font-weight:600;font-size:clamp(1.4rem,3.2vw,2.2rem);letter-spacing:-.01em;line-height:1.1;margin-bottom:0;padding-right:60px}
+  .slide ul{list-style:none;display:flex;flex-direction:column;gap:clamp(6px,1.4vh,13px);margin-top:clamp(14px,2.8vh,26px)}
+  .slide li{font-size:clamp(.85rem,1.55vw,1.08rem);line-height:1.35;display:flex;gap:10px;align-items:flex-start;color:rgba(244,236,219,.94)}
+  .slide li::before{content:"▪";color:var(--hot);font-size:1.1em;line-height:1.1;flex:none}
+  .slide .imghint{position:absolute;bottom:14px;left:clamp(20px,3.4vw,40px);font-size:.66rem;letter-spacing:.05em;color:rgba(244,236,219,.5);display:flex;align-items:center;gap:6px}
+  /* title slide variant */
+  .slide.title{justify-content:center;text-align:center;align-items:center}
+  .slide.title .stitle{margin:0 0 6px;padding:0;font-weight:900;font-size:clamp(2rem,5vw,3.2rem)}
+  .slide.title ul{align-items:center;margin-top:18px;gap:7px}
+  .slide.title li{font-size:clamp(.9rem,1.7vw,1.15rem);color:rgba(244,236,219,.9)}
+  .slide.title li::before{content:""}
+  .videopill{margin-top:16px;align-self:flex-start;background:rgba(196,90,44,.22);border:1px solid rgba(196,90,44,.5);color:#ffd9c4;font-size:.8rem;font-weight:600;padding:7px 13px;border-radius:999px}
+  /* Q&A question slides */
+  .slide.qa{background:radial-gradient(120% 130% at 0% 0%, #B05528, #6f2f14);justify-content:center;text-align:center;align-items:center}
+  .slide.qa::after{background:radial-gradient(circle,rgba(28,110,102,.30),transparent 70%)}
+  .slide.qa .stitle{padding:0;font-weight:600;font-size:clamp(1.4rem,3.2vw,2.25rem);line-height:1.18}
+  .slide.qa .badge{color:rgba(244,236,219,.18)}
+  .qlabel{font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(244,236,219,.62);margin-bottom:14px;font-weight:600}
+  .qmn{margin-top:14px;font-size:clamp(.85rem,1.55vw,1.05rem);color:rgba(244,236,219,.82);line-height:1.4;max-width:82%}
+  .qhint{margin-top:20px;font-size:.78rem;color:#ffe2d0;background:rgba(0,0,0,.2);padding:6px 14px;border-radius:999px}
+
+  .center .nav{display:flex;align-items:center;gap:12px;margin-top:16px}
+  .navbtn{cursor:pointer;border:1px solid var(--line);background:var(--card);width:44px;height:44px;border-radius:12px;font-size:1.2rem;color:var(--ink);display:grid;place-items:center;transition:.15s;box-shadow:var(--shadow)}
+  .navbtn:hover{background:var(--ink);color:var(--paper2)} .navbtn:disabled{opacity:.3;cursor:not-allowed;background:var(--card);color:var(--ink)}
+  .dots{display:flex;gap:6px} .dot{width:9px;height:9px;border-radius:50%;background:var(--line);cursor:pointer;border:none;padding:0;transition:.2s} .dot.on{background:var(--accent);transform:scale(1.3)} .dot.done{background:var(--accent);opacity:.4}
+
+  /* RIGHT — PROMPTER */
+  .prompter{border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:rgba(251,245,234,.5)}
+  .ph{display:flex;align-items:center;gap:8px;padding:13px 16px 10px;border-bottom:1px solid var(--line)}
+  .ph b{font-family:var(--serif);font-size:1.05rem;font-weight:600}
+  .ph .tag{font-size:.58rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-left:auto}
+  .pbody{flex:1;overflow-y:auto;padding:14px 16px 18px}
+  .reveal{width:100%;cursor:pointer;border:none;font-family:var(--serif);font-weight:600;font-size:1.02rem;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent-d));padding:13px;border-radius:13px;box-shadow:var(--shadow);transition:transform .12s,filter .15s}
+  .reveal:hover{filter:brightness(1.07)} .reveal:active{transform:scale(.98)}
+  .reveal .k{display:block;font-family:var(--sans);font-weight:500;font-size:.64rem;opacity:.82;text-transform:uppercase;letter-spacing:.12em;margin-top:3px}
+  .block{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:13px 15px;margin-bottom:10px;opacity:0;transform:translateY(8px);animation:rise .4s forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .blabel{font-size:.58rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-weight:600}
+  .en{font-family:var(--serif);font-weight:500;font-size:1.1rem;line-height:1.55;color:var(--ink)}
+  .rd{font-size:1rem;color:var(--hot);font-weight:600;line-height:1.55}
+  .mn{font-size:.92rem;color:var(--muted);line-height:1.55}
+  .videohint{margin-top:4px;padding:11px 13px;border-radius:11px;border:1px solid var(--line);background:linear-gradient(135deg,rgba(196,90,44,.1),rgba(196,90,44,.03));font-size:.85rem;color:var(--ink-soft)}
+  .videohint b{color:var(--hot)}
+
+  /* responsive */
+  @media(max-width:980px){
+    body{height:auto;overflow:auto}
+    .layout{grid-template-columns:1fr;}
+    .menu{flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line);gap:6px}
+    .menu .mh{display:none} .mitem{flex:none;width:auto}
+    .mitem .mt{display:none} .mitem .mn{min-width:auto}
+    .prompter{border-left:none;border-top:1px solid var(--line)}
+    .center{padding:18px}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><b>PayRing DIY</b><span>Суфлёр · слайд + речь</span></div>
+  <span class="counter" id="counter">1 / 10</span>
+  <div class="spacer"></div>
+  <div class="timer"><small>10:00</small><div class="clock" id="clock">00:00</div>
+    <button class="tbtn" id="startBtn">Старт</button><button class="tbtn ghost" id="resetBtn">Сброс</button></div>
+  <div class="views"><span class="lbl">Речь:</span>
+    <button class="chip on" data-v="en">English</button>
+    <button class="chip" data-v="rd">Как читать</button>
+    <button class="chip" data-v="mn">Смысл</button></div>
+</div>
+
+<div class="layout">
+  <!-- MENU -->
+  <nav class="menu" id="menu"><div class="mh">Слайды</div></nav>
+
+  <!-- SLIDE -->
+  <div class="center">
+    <div class="slide" id="slide"></div>
+    <div class="nav">
+      <button class="navbtn" id="prev" aria-label="Назад">‹</button>
+      <div class="dots" id="dots"></div>
+      <button class="navbtn" id="next" aria-label="Вперёд">›</button>
+    </div>
+  </div>
+
+  <!-- PROMPTER -->
+  <aside class="prompter">
+    <div class="ph"><b id="phTitle">Твоя речь</b><span class="tag">читай вслух</span></div>
+    <div class="pbody">
+      <button class="reveal" id="revealBtn">Показать текст<span class="k">или клавиша Пробел</span></button>
+      <div id="speech" style="margin-top:12px;display:none"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const SLIDES=[
+ {ru:"Титул",en:"PayRing DIY",title:true,img:"logo_new.png",
+  slide:["Build your own NFC ring for contactless payments","Author: Dias Kabdualiyev","Supervisor: Meraliyev Meraryslan","SDU University · Information Systems · 2026"],
+  lines:[
+   {en:"Good morning, dear committee.",rd:"Гуд мо́рнинг, диа коми́ти.",mn:"Доброе утро, уважаемая комиссия."},
+   {en:"My name is Dias Kabdualiyev.",rd:"Май нэйм из Диас Кабдуалиев.",mn:"Меня зовут Диас Кабдуалиев."},
+   {en:"I study Information Systems at SDU University.",rd:"Ай ста́ди информэ́йшн си́стемс эт Эс-Ди-Ю юниве́рсити.",mn:"Я учусь на «Информационных системах» в SDU University."},
+   {en:"Today I present my diploma project: PayRing DIY.",rd:"Тудэ́й ай призэ́нт май дипло́ма про́джект: ПэйРи́нг Ди-Ай-Уа́й.",mn:"Сегодня я представляю дипломный проект PayRing DIY."},
+   {en:"It is a kit to build your own NFC ring for contactless payments.",rd:"Ит из э кит ту билд ёр о́ун Эн-Эф-Си ринг фор ко́нтэктлес пэ́йментс.",mn:"Это набор для сборки своего NFC-кольца для бесконтактной оплаты."}
+ ]},
+ {ru:"Проблема",en:"The Problem",img:"lose_chart.png",
+  slide:["Cards are easy to lose, forget, or leave at home","Phones may fail — for example, a dead battery","Kazakhstan 2025: 81M+ bank cards — more than the population","Current tools lack wearability and convenience","Need: a stylish, battery-free, always-on NFC ring"],
+  lines:[
+   {en:"First, the problem.",rd:"Фёрст, зэ про́блем.",mn:"Сначала — проблема."},
+   {en:"Cards are easy to lose or forget at home.",rd:"Кардз ар и́зи ту луз ор форгэ́т эт хо́ум.",mn:"Карты легко потерять или забыть дома."},
+   {en:"Phones can also fail. For example, a dead battery.",rd:"Фо́унз кэн о́лсо фэйл. Фор игзэ́мпл, э дэд бэ́тери.",mn:"Телефоны тоже подводят. Например, разряженная батарея."},
+   {en:"In Kazakhstan, in 2025, there are over 81 million bank cards. That is more than our population.",rd:"Ин Казахста́н, ин туэ́нти-туэ́нти-файв, зэр ар о́увер э́йти-уа́н ми́льон бэнк кардз. Зэт из мор зэн а́уэр популэ́йшн.",mn:"В Казахстане в 2025 году более 81 миллиона карт — больше, чем население."},
+   {en:"So we need a tool that is always with us.",rd:"Со́у уи нид э тул зэт из о́лвэйз уиз ас.",mn:"Значит, нужен инструмент, который всегда с нами."},
+   {en:"My answer is a stylish, battery-free NFC ring.",rd:"Май а́нсер из э ста́йлиш, бэ́тери-фри Эн-Эф-Си ринг.",mn:"Мой ответ — стильное NFC-кольцо без батареи."}
+ ]},
+ {ru:"Значимость",en:"Why It Matters",img:"orange_ring.jpg",
+  slide:["Always ready — no charging","Reduces forgotten or lost card situations","Multi-purpose: pay · access · share info","Eco-friendly: battery-free, less paper waste","Affordable DIY kit — builds STEM skills","User-owned, open-source credentials"],
+  lines:[
+   {en:"Why is this important?",rd:"Уа́й из зис импо́ртант?",mn:"Почему это важно?"},
+   {en:"The ring is always ready. No charging.",rd:"Зэ ринг из о́лвэйз рэ́ди. Но́у ча́рджинг.",mn:"Кольцо всегда готово. Без зарядки."},
+   {en:"It has three uses: pay, access, and share information.",rd:"Ит хэз сри ю́сиз: пэй, э́ксес, энд шэр информэ́йшн.",mn:"Три применения: оплата, доступ, обмен информацией."},
+   {en:"It is eco-friendly, because it has no battery.",rd:"Ит из и́ко-фрэ́ндли, бико́з ит хэз но́у бэ́тери.",mn:"Оно экологично — без батареи."},
+   {en:"And it is a do-it-yourself kit, so it helps students learn.",rd:"Энд ит из э ду-ит-ёрсэ́лф кит, со́у ит хэлпс стью́дентс лён.",mn:"И это набор для самостоятельной сборки — помогает студентам учиться."}
+ ]},
+ {ru:"Существующие решения",en:"Existing Solutions",img:"SmartRing.jpg",
+  slide:["McLEAR ring — pays anywhere, but expensive","Smartwatches (Apple Watch) — need charging","Apple Pay / Google Wallet — closed systems","QR / Bluetooth campus passes — limited use","PayRing: open, cheap, and battery-free"],
+  lines:[
+   {en:"There are already some solutions on the market.",rd:"Зэр ар о́лрэди сам солю́шнз он зэ ма́ркет.",mn:"На рынке уже есть решения."},
+   {en:"For example, the McLEAR payment ring, smartwatches, and phone wallets.",rd:"Фор игзэ́мпл, зэ Макли́р пэ́ймент ринг, смартуо́тчиз, энд фо́ун уо́летс.",mn:"Например, кольцо McLEAR, смарт-часы и телефонные кошельки."},
+   {en:"But they are expensive, or they need charging, or they are closed systems.",rd:"Бат зэй ар икспэ́нсив, ор зэй нид ча́рджинг, ор зэй ар кло́узд си́стемс.",mn:"Но они дорогие, требуют зарядки или закрыты."},
+   {en:"My project is open, cheap, and battery-free.",rd:"Май про́джект из о́упен, чип, энд бэ́тери-фри.",mn:"Мой проект открытый, дешёвый и без батареи."}
+ ]},
+ {ru:"Цель и задачи",en:"Aim & Objectives",img:"animation_ring.png",
+  slide:["Aim: stylish, affordable, easy DIY NFC rings","Each ring does one task well","Product: 3 self-assembled battery-free rings","Toolkit: open web platform + documentation","Proof: survey + tests + field trials"],
+  lines:[
+   {en:"Now, my aim.",rd:"На́у, май эйм.",mn:"Теперь — цель."},
+   {en:"The aim is to create stylish, cheap, and easy DIY NFC rings.",rd:"Зэ эйм из ту криэ́йт ста́йлиш, чип, энд и́зи Ди-Ай-Уа́й Эн-Эф-Си рингз.",mn:"Цель — создать стильные, дешёвые и простые NFC-кольца для самосборки."},
+   {en:"Each ring does one task: payment, access, or sharing data.",rd:"Ич ринг даз уан таск: пэ́ймент, э́ксес, ор шэ́ринг дэ́йта.",mn:"Каждое кольцо делает одну задачу: оплата, доступ или обмен данными."},
+   {en:"I had three objectives.",rd:"Ай хэд сри обджэ́ктивз.",mn:"У меня было три задачи."},
+   {en:"One: build three working rings.",rd:"Уан: билд сри уо́ркинг рингз.",mn:"Первая: собрать три рабочих кольца."},
+   {en:"Two: make an open web platform and documentation.",rd:"Ту: мэйк эн о́упен уэб плэ́тформ энд докьюментэ́йшн.",mn:"Вторая: открытая веб-платформа и документация."},
+   {en:"Three: prove it works with a user survey and tests.",rd:"Сри: прув ит уоркс уиз э ю́зер сёрвэй энд тэстс.",mn:"Третья: доказать опросом и тестами."}
+ ]},
+ {ru:"Исследование (опрос)",en:"User Survey",img:"price_chart.png",
+  slide:["Online survey: 150 users, mostly aged 18–24","35% often can't access their card (forgot / dead phone)","73% know NFC, but 27% never heard of NFC rings","68% would consider buying at $30–50","→ real interest, and still a new idea"],
+  lines:[
+   {en:"I did a survey to check the real interest.",rd:"Ай дид э сёрвэй ту чек зэ риал и́нтерест.",mn:"Я провёл опрос, чтобы проверить реальный интерес."},
+   {en:"I surveyed 150 people, most of them aged 18 to 24.",rd:"Ай сёрвэйд уа́н-ха́ндред-фи́фти пипл, мо́уст ов зэм эйджд э́йти́н ту туэ́нти-фор.",mn:"Я опросил 150 человек, в основном 18–24 лет."},
+   {en:"Thirty-five percent often cannot use their card. They forget it, or the phone battery is dead.",rd:"Сёрти-файв персэ́нт о́фен кэ́нот юз зэр кард. Зэй форгэ́т ит, ор зэ фо́ун бэ́тери из дэд.",mn:"35% часто не могут воспользоваться картой — забыли или сел телефон."},
+   {en:"Seventy-three percent know NFC, but twenty-seven percent had never heard of NFC rings.",rd:"Сэ́венти-сри персэ́нт но́у Эн-Эф-Си, бат туэ́нти-сэ́вен персэ́нт хэд нэ́вер хёрд ов Эн-Эф-Си рингз.",mn:"73% знают NFC, но 27% вообще не слышали про NFC-кольца."},
+   {en:"And sixty-eight percent would consider buying the ring for thirty to fifty dollars.",rd:"Энд си́ксти-эйт персэ́нт вуд конси́дер ба́инг зэ ринг фор сёрти ту фи́фти до́ларз.",mn:"И 68% рассмотрели бы покупку кольца за $30–50."},
+   {en:"So the interest is real, and the idea is still new for people.",rd:"Со́у зэ и́нтерест из риал, энд зэ айди́а из стил нью фор пипл.",mn:"Значит, интерес реальный, а идея для людей пока новая."}
+ ]},
+ {ru:"Архитектура",en:"Architecture & Implementation",img:"web_admin.png",
+  slide:["Three rings: Payment (bank chip), Info (NTAG), Access (MiFare)","NFC-Cloner device (ESP32 + PN532) copies cards to the ring","Web platform with a REST API stores user profiles","Everything is open-source and documented"],
+  lines:[
+   {en:"Now I explain how the system works.",rd:"На́у ай иксплэ́йн ха́у зэ си́стем уоркс.",mn:"Теперь объясню, как работает система."},
+   {en:"There are three rings.",rd:"Зэр ар сри рингз.",mn:"Колец три."},
+   {en:"The payment ring uses a real bank-card NFC chip inside a 3D-printed shell.",rd:"Зэ пэ́ймент ринг ю́сиз э риал бэнк-кард Эн-Эф-Си чип инса́йд э сри-ди при́нтэд шэл.",mn:"Платёжное кольцо — настоящий чип банковской карты в 3D-корпусе."},
+   {en:"The info ring uses an NTAG chip linked to a digital business card.",rd:"Зэ и́нфо ринг ю́сиз эн Эн-Таг чип линкт ту э ди́джитал би́знес кард.",mn:"Информационное кольцо — чип NTAG со ссылкой на цифровую визитку."},
+   {en:"The access ring uses a MiFare chip to open doors.",rd:"Зэ э́ксес ринг ю́сиз э Майфэ́р чип ту о́упен дорз.",mn:"Кольцо доступа — чип MiFare, чтобы открывать двери."},
+   {en:"I also built a small device, the NFC-Cloner, to copy access cards to the ring.",rd:"Ай о́лсо билт э смол дива́йс, зэ Эн-Эф-Си Кло́унер, ту ко́пи э́ксес кардз ту зэ ринг.",mn:"Я также собрал устройство NFC-Cloner, чтобы копировать карты доступа на кольцо."},
+   {en:"A web platform stores the profiles and uses a REST API.",rd:"Э уэб плэ́тформ сторз зэ про́файлз энд ю́сиз э РЕСТ Эй-Пи-Ай.",mn:"Веб-платформа хранит профили и использует REST API."},
+   {en:"All of this is open-source and documented, so anyone can build it.",rd:"Ол ов зис из о́упен-сорс энд до́кьюментэд, со́у э́ниван кэн билд ит.",mn:"Всё это открытый код с документацией — собрать может любой."}
+ ]},
+ {ru:"Результаты",en:"Results",img:"web_shop.png",
+  slide:["All three rings built and working","Payment ring: paid on a real Kaspi POS — under 1 second","Info ring: digital business card with one tap","Access ring: opened a door like a normal card","Scan the QR code to test the platform and watch the video"],
+  lines:[
+   {en:"Now the results.",rd:"На́у зэ риза́лтс.",mn:"Теперь результаты."},
+   {en:"I successfully built all three rings.",rd:"Ай саксэ́сфули билт ол сри рингз.",mn:"Я успешно собрал все три кольца."},
+   {en:"The payment ring worked on a real Kaspi POS terminal. The payment was confirmed in under one second.",rd:"Зэ пэ́ймент ринг уоркт он э риал Ка́спи Пи-О-Эс тёрминал. Зэ пэ́ймент уоз конфёрмд ин а́ндер уан сэ́конд.",mn:"Платёжное кольцо сработало на реальном POS-терминале Kaspi — оплата меньше чем за секунду."},
+   {en:"The info ring opened a digital business card with one tap, on Android and iPhone.",rd:"Зэ и́нфо ринг о́упенд э ди́джитал би́знес кард уиз уан тэп, он Э́ндроид энд Айфо́ун.",mn:"Информационное кольцо открывало визитку одним касанием — на Android и iPhone."},
+   {en:"The access ring opened a door lock like a normal card.",rd:"Зэ э́ксес ринг о́упенд э дор лок лайк э но́рмал кард.",mn:"Кольцо доступа открывало замок как обычная карта."},
+   {en:"So the rings can really replace plastic cards.",rd:"Со́у зэ рингз кэн риали риплэ́йс плэ́стик кардз.",mn:"Значит, кольца реально могут заменить пластиковые карты."}
+ ]},
+ {ru:"Демонстрация",en:"Live Demonstration",img:"IMG_2967.MOV",video:true,
+  slide:["Portable NFC Writer (ESP32 + PN532)","NFC Demonstration Station","Live: tap the ring — see the action","Watch the full video below"],
+  lines:[
+   {en:"Now let me show a short demonstration.",rd:"На́у лет ми шо́у э шорт демонстрэ́йшн.",mn:"Теперь покажу короткую демонстрацию."},
+   {en:"I built a portable NFC writer and a demo station.",rd:"Ай билт э по́ртабл Эн-Эф-Си ра́йтер энд э дэ́мо стэ́йшн.",mn:"Я собрал портативный NFC-писатель и демо-станцию."},
+   {en:"You can also scan this QR code to watch the full video and test the platform.",rd:"Ю кэн о́лсо скэн зис Кью-Ар ко́уд ту уотч зэ фул ви́део энд тест зэ плэ́тформ.",mn:"Можно отсканировать QR-код, чтобы посмотреть полное видео и протестировать платформу."}
+ ]},
+ {ru:"Заключение",en:"Conclusion",img:"logo.png",
+  slide:["One battery-free ring: pay · open doors · share data","Affordable, open-source, and good for learning","REST-based web platform manages user profiles","Future: health monitoring and security","Thank you for your attention!"],
+  lines:[
+   {en:"In conclusion.",rd:"Ин конклю́жн.",mn:"В заключение."},
+   {en:"PayRing shows that one small ring can pay, open doors, and share data.",rd:"ПэйРи́нг шо́уз зэт уан смол ринг кэн пэй, о́упен дорз, энд шэр дэ́йта.",mn:"PayRing показывает: одно кольцо может платить, открывать двери и делиться данными."},
+   {en:"It works without a battery, and it is comfortable to wear.",rd:"Ит уоркс уиза́ут э бэ́тери, энд ит из ко́мфортабл ту уэр.",mn:"Оно без батареи и удобно носится."},
+   {en:"It is affordable, open-source, and good for learning.",rd:"Ит из эффо́рдабл, о́упен-сорс, энд гуд фор лёрнинг.",mn:"Доступное, с открытым кодом, полезно для обучения."},
+   {en:"In the future, it can be used for health and security too.",rd:"Ин зэ фью́чер, ит кэн би юзд фор хэлс энд секью́рити ту.",mn:"В будущем — ещё для здоровья и безопасности."},
+   {en:"Thank you for your attention. I am ready for your questions.",rd:"Сэнк ю фор ёр атэ́ншн. Ай эм рэ́ди фор ёр куэ́счнз.",mn:"Спасибо за внимание. Готов к вашим вопросам."}
+ ]}
+];
+
+const QA=[
+ {qa:true,ru:"Что такое NFC?",q:"What is NFC, in simple words?",qmn:"Что такое NFC простыми словами?",
+  lines:[
+   {en:"NFC is a wireless link for a very short distance, about four centimeters.",rd:"Эн-Эф-Си из э уа́йерлес линк фор э вэ́ри шорт ди́станс, эба́ут фор сэ́нтиметерз.",mn:"NFC — беспроводная связь на очень коротком расстоянии, около 4 см."},
+   {en:"You tap two devices together, and they share data.",rd:"Ю тэп ту дива́йсиз тугэ́зер, энд зэй шэр дэ́йта.",mn:"Прикладываешь два устройства — и они обмениваются данными."},
+   {en:"It is the same technology used in contactless bank cards.",rd:"Ит из зэ сэйм текно́лоджи юзд ин ко́нтэктлес бэнк кардз.",mn:"Это та же технология, что в бесконтактных банковских картах."}
+  ]},
+ {qa:true,ru:"Нужна ли батарейка?",q:"Does the ring need a battery? How does it get power?",qmn:"Нужна ли кольцу батарейка? Откуда оно берёт энергию?",
+  lines:[
+   {en:"No, the ring has no battery. The chip is passive.",rd:"Но́у, зэ ринг хэз но́у бэ́тери. Зэ чип из пэ́сив.",mn:"Нет, батареи нет. Чип пассивный."},
+   {en:"It takes energy from the terminal's field when you tap.",rd:"Ит тэйкс э́нерджи фром зэ тёрминалз филд уэн ю тэп.",mn:"Он берёт энергию от поля терминала в момент касания."},
+   {en:"So it is always ready and never needs charging.",rd:"Со́у ит из о́лвэйз рэ́ди энд нэ́вер нидз ча́рджинг.",mn:"Поэтому всегда готов и не требует зарядки."}
+  ]},
+ {qa:true,ru:"Это безопасно?",q:"Is it safe? Can someone steal money by touching me in a crowd?",qmn:"Это безопасно? Могут ли украсть деньги, задев меня в толпе?",
+  lines:[
+   {en:"It is quite safe. NFC works only a few centimeters away.",rd:"Ит из куа́йт сэйф. Эн-Эф-Си уоркс о́унли э фью сэ́нтиметерз эвэ́й.",mn:"Довольно безопасно. NFC работает только в нескольких сантиметрах."},
+   {en:"A terminal must be very close, almost touching.",rd:"Э тёрминал маст би вэ́ри кло́уз, о́лмост та́чинг.",mn:"Терминал должен быть очень близко, почти вплотную."},
+   {en:"And contactless payments have a small limit without a PIN.",rd:"Энд ко́нтэктлес пэ́йментс хэв э смол ли́мит уиза́ут э пин.",mn:"И у бесконтактной оплаты есть небольшой лимит без пин-кода."},
+   {en:"The risk is the same as a normal contactless card.",rd:"Зэ риск из зэ сэйм эз э но́рмал ко́нтэктлес кард.",mn:"Риск такой же, как у обычной бесконтактной карты."}
+  ]},
+ {qa:true,ru:"Если потерял кольцо?",q:"What if I lose the ring? Can someone use it?",qmn:"Что если я потеряю кольцо — сможет ли кто-то им воспользоваться?",
+  lines:[
+   {en:"For the payment ring, it is like losing a card. You block it at the bank.",rd:"Фор зэ пэ́ймент ринг, ит из лайк лу́зинг э кард. Ю блок ит эт зэ бэнк.",mn:"Платёжное кольцо — как потеря карты: блокируешь в банке."},
+   {en:"For the info and access rings, I can change or delete the data online.",rd:"Фор зэ и́нфо энд э́ксес рингз, ай кэн чэйндж ор дили́т зэ дэ́йта о́нлайн.",mn:"Для info и access колец данные можно изменить или удалить онлайн."}
+  ]},
+ {qa:true,ru:"Зачем кольцо, есть Apple Pay?",q:"Why a ring, if I already have Apple Pay on my phone?",qmn:"Зачем кольцо, если в телефоне уже есть Apple Pay?",
+  lines:[
+   {en:"The phone can fail. A dead battery, or you forget it at home.",rd:"Зэ фо́ун кэн фэйл. Э дэд бэ́тери, ор ю форгэ́т ит эт хо́ум.",mn:"Телефон подводит: сел аккумулятор или забыл дома."},
+   {en:"The ring is always on your hand, needs no charging, and works in one second.",rd:"Зэ ринг из о́лвэйз он ёр хэнд, нидз но́у ча́рджинг, энд уоркс ин уан сэ́конд.",mn:"Кольцо всегда на руке, не требует зарядки и работает за секунду."}
+  ]},
+ {qa:true,ru:"Реально платил им?",q:"Did you really pay with it in a real shop?",qmn:"Ты реально расплатился им в магазине?",
+  lines:[
+   {en:"Yes. I tested the payment ring on a real Kaspi POS terminal.",rd:"Йес. Ай тэ́стид зэ пэ́ймент ринг он э риал Ка́спи Пи-О-Эс тёрминал.",mn:"Да. Я протестировал платёжное кольцо на реальном POS-терминале Kaspi."},
+   {en:"The payment was confirmed in under one second, like a normal card.",rd:"Зэ пэ́ймент уоз конфёрмд ин а́ндер уан сэ́конд, лайк э но́рмал кард.",mn:"Оплата прошла меньше чем за секунду, как обычной картой."}
+  ]},
+ {qa:true,ru:"Резать карту — законно?",q:"You cut a real bank card to get the chip. Is that legal?",qmn:"Ты разрезал настоящую банковскую карту — это законно?",
+  lines:[
+   {en:"This is a prototype, only for research, not a final product.",rd:"Зис из э про́тотайп, о́унли фор риса́рч, нот э фа́йнал про́дакт.",mn:"Это прототип, только для исследования, не готовый продукт."},
+   {en:"For a real product, we would need a partnership with a bank to get a secure chip legally.",rd:"Фор э риал про́дакт, уи вуд нид э па́ртнершип уиз э бэнк ту гет э секью́р чип ли́галли.",mn:"Для продукта нужен договор с банком, чтобы легально получить защищённый чип."},
+   {en:"I explain this limitation honestly in my thesis.",rd:"Ай иксплэ́йн зис лимитэ́йшн о́нестли ин май си́сис.",mn:"Я честно описываю это ограничение в дипломе."}
+  ]},
+ {qa:true,ru:"Клонирование — не риск?",q:"The access ring copies a card. Isn't that a security risk?",qmn:"Кольцо доступа копирует карту — разве это не угроза безопасности?",
+  lines:[
+   {en:"I only copy my own card and my own access.",rd:"Ай о́унли ко́пи май о́ун кард энд май о́ун э́ксес.",mn:"Я копирую только свою карту и свой собственный доступ."},
+   {en:"The goal is to put your own keys into one ring, not to break someone else's security.",rd:"Зэ го́ул из ту пут ёр о́ун киз и́нту уан ринг, нот ту брэйк самва́нз элс секью́рити.",mn:"Цель — объединить свои ключи в одном кольце, а не взломать чужую защиту."},
+   {en:"I also discuss the ethical side in my thesis.",rd:"Ай о́лсо диска́с зэ э́сикал сайд ин май си́сис.",mn:"Этическую сторону я тоже разбираю в дипломе."}
+  ]},
+ {qa:true,ru:"⚠ Что сделал лично ты?",q:"This was a team project. What did YOU personally do?",qmn:"Это командный проект. Что сделал лично ТЫ? — ВПИШИ СВОЮ ПРАВДУ!",
+  lines:[
+   {en:"I worked on ...",rd:"Ай уоркт он ...",mn:"⚠ ВПИШИ СВОЮ ЧАСТЬ: напр. железо и кольца / устройство NFC-Cloner / веб-платформу. Назови конкретно."},
+   {en:"For this defense, I present the whole project, and I understand every part of it.",rd:"Фор зис дифэ́нс, ай призэ́нт зэ хо́ул про́джект, энд ай андерстэ́нд э́ври парт ов ит.",mn:"На этой защите я представляю весь проект и понимаю каждую его часть."}
+  ]},
+ {qa:true,ru:"Чем лучше McLEAR?",q:"How is it different from McLEAR, which already exists?",qmn:"Чем твой проект отличается от уже существующего McLEAR?",
+  lines:[
+   {en:"McLEAR is a closed, finished product. You cannot change it, and it is expensive.",rd:"Макли́р из э кло́узд, фи́ништ про́дакт. Ю кэ́нот чэйндж ит, энд ит из икспэ́нсив.",mn:"McLEAR — закрытый готовый продукт: его нельзя менять, и он дорогой."},
+   {en:"My project is open-source, cheap, a DIY kit, and it does three things, not only payment.",rd:"Май про́джект из о́упен-сорс, чип, э ди-ай-уа́й кит, энд ит даз сри сингз, нот о́унли пэ́ймент.",mn:"Мой — открытый, дешёвый, набор для самосборки, и делает три вещи, не только оплату."}
+  ]},
+ {qa:true,ru:"Что не получилось?",q:"What did not work? What are the limitations?",qmn:"Что не получилось? Какие ограничения?",
+  lines:[
+   {en:"The main limitation is the payment ring.",rd:"Зэ мэйн лимитэ́йшн из зэ пэ́ймент ринг.",mn:"Главное ограничение — платёжное кольцо."},
+   {en:"Without a bank partnership, I had to extract the chip by hand, which is only good for a prototype.",rd:"Уиза́ут э бэнк па́ртнершип, ай хэд ту икстрэ́кт зэ чип бай хэнд, уич из о́унли гуд фор э про́тотайп.",mn:"Без договора с банком чип пришлось извлекать вручную — это годится только для прототипа."},
+   {en:"I also did not run a large user test yet. That is the next step.",rd:"Ай о́лсо дид нот ран э лардж ю́зер тэст йет. Зэт из зэ нэкст стэп.",mn:"Большой пользовательский тест я ещё не проводил — это следующий шаг."}
+  ]},
+ {qa:true,ru:"Сколько стоит сделать?",q:"How much does it cost to make one ring?",qmn:"Сколько стоит сделать одно кольцо?",
+  lines:[
+   {en:"The materials are cheap, a few dollars for the shell, the chip, and the resin.",rd:"Зэ метэ́риалз ар чип, э фью до́ларз фор зэ шэл, зэ чип, энд зэ рэ́зин.",mn:"Материалы дешёвые — несколько долларов за корпус, чип и смолу."},
+   {en:"In the survey, most people would pay thirty to fifty dollars for a finished ring.",rd:"Ин зэ сёрвэй, мо́уст пипл вуд пэй сёрти ту фи́фти до́ларз фор э фи́ништ ринг.",mn:"По опросу, большинство готовы платить $30–50 за готовое кольцо."}
+  ]}
+];
+
+let cur=0;let revealed=true;const visited=new Set([0]);const view={en:true,rd:false,mn:false};
+const ITEMS=SLIDES.concat(QA);const NS=SLIDES.length;
+const $=s=>document.querySelector(s);
+const slideEl=$("#slide"),menu=$("#menu"),dots=$("#dots"),counter=$("#counter"),phTitle=$("#phTitle");
+const prev=$("#prev"),next=$("#next"),speech=$("#speech"),revealBtn=$("#revealBtn");
+const pad=n=>String(n).padStart(2,"0");
+
+// menu (two groups) + dots (slides only)
+function addHeader(t){const h=document.createElement("div");h.className="mh";h.textContent=t;menu.appendChild(h);}
+function addItem(idx,num,title){const b=document.createElement("button");b.className="mitem";b.dataset.idx=idx;
+  b.innerHTML=`<span class="mn">${num}</span><span class="mt">${title}</span>`;b.onclick=()=>go(idx);menu.appendChild(b);}
+menu.innerHTML="";
+addHeader("Слайды");
+SLIDES.forEach((s,i)=>addItem(i,pad(i+1),s.ru));
+addHeader("Вопросы (Q&A)");
+QA.forEach((s,gi)=>addItem(NS+gi,"Q"+(gi+1),s.ru));
+SLIDES.forEach((s,i)=>{const d=document.createElement("button");d.className="dot";d.title="Слайд "+(i+1);d.onclick=()=>go(i);dots.appendChild(d);});
+const mitems=[...menu.querySelectorAll(".mitem")];
+
+function renderSlide(){
+  const s=ITEMS[cur];
+  if(s.qa){
+    slideEl.className="slide qa";
+    slideEl.innerHTML=`<div class="badge">Q${cur-NS+1}</div>`+
+      `<div class="qlabel">Вопрос комиссии</div>`+
+      `<div class="stitle">${s.q}</div>`+
+      `<div class="qmn">${s.qmn}</div>`+
+      `<div class="qhint">💬 Твой ответ — справа →</div>`;
+    return;
+  }
+  slideEl.className="slide"+(s.title?" title":"");
+  let html=`<div class="badge">${pad(cur+1)}</div><div class="stitle">${s.en}</div>`;
+  html+="<ul>"+s.slide.map(x=>`<li>${x}</li>`).join("")+"</ul>";
+  if(s.video)html+=`<div class="videopill">▶ запусти видео IMG_2967.MOV (~60–90 сек)</div>`;
+  if(s.img)html+=`<div class="imghint">🖼 figures/${s.img}</div>`;
+  slideEl.innerHTML=html;
+}
+function renderSpeech(){
+  speech.innerHTML="";const s=ITEMS[cur];
+  const cats=[{k:"en",cls:"en",label:"English"},{k:"rd",cls:"rd",label:"Как читать"},{k:"mn",cls:"mn",label:"Смысл"}].filter(c=>view[c.k]);
+  const showLabel=cats.length>1;
+  cats.forEach((c,i)=>{
+    const text=s.lines.map(l=>l[c.k]).join(" ");
+    const d=document.createElement("div");d.className="block";d.style.animationDelay=(i*0.07)+"s";
+    d.innerHTML=(showLabel?`<div class="blabel">${c.label}</div>`:"")+`<p class="${c.cls}">${text}</p>`;
+    speech.appendChild(d);
+  });
+  if(s.video){const v=document.createElement("div");v.className="videohint";
+    v.innerHTML=`<b>Запусти видео</b> и помолчи ~60–90 секунд — добавит времени, говорить не нужно.`;speech.appendChild(v);}
+}
+function render(){
+  const s=ITEMS[cur];const isqa=!!s.qa;
+  renderSlide();
+  counter.textContent=isqa?("Вопрос "+(cur-NS+1)+" / "+QA.length):((cur+1)+" / "+NS);
+  phTitle.textContent=isqa?"Твой ответ":"Твоя речь";
+  prev.disabled=cur===0;next.disabled=cur===ITEMS.length-1;
+  mitems.forEach((m)=>{const i=+m.dataset.idx;m.className="mitem"+(i===cur?" on":visited.has(i)?" done":"");});
+  [...dots.children].forEach((d,i)=>d.className="dot"+(i===cur?" on":visited.has(i)?" done":""));
+  renderSpeech();
+  speech.style.display=revealed?"":"none";
+  revealBtn.innerHTML=revealed
+    ?('Скрыть'+(isqa?' ответ':' текст')+'<span class="k">самопроверка · Пробел</span>')
+    :((isqa?'Показать ответ':'Показать текст')+'<span class="k">или клавиша Пробел</span>');
+}
+function go(i){if(i<0||i>=ITEMS.length)return;cur=i;visited.add(i);render();
+  if(window.innerWidth<=980)document.querySelector(".center").scrollIntoView({behavior:"smooth"});}
+
+revealBtn.onclick=()=>{
+  revealed=!revealed;const isqa=!!ITEMS[cur].qa;
+  if(revealed){speech.style.display="";renderSpeech();revealBtn.innerHTML='Скрыть'+(isqa?' ответ':' текст')+'<span class="k">самопроверка · Пробел</span>';}
+  else{speech.style.display="none";revealBtn.innerHTML=(isqa?'Показать ответ':'Показать текст')+'<span class="k">или клавиша Пробел</span>';}
+};
+prev.onclick=()=>go(cur-1);next.onclick=()=>go(cur+1);
+document.querySelectorAll(".chip").forEach(c=>{c.onclick=()=>{const k=c.dataset.v;view[k]=!view[k];c.classList.toggle("on",view[k]);if(speech.style.display!=="none")renderSpeech();};});
+
+let t=0,timer=null;const clock=$("#clock"),startBtn=$("#startBtn");
+function fmt(){clock.textContent=pad(Math.floor(t/60))+":"+pad(t%60);clock.classList.toggle("warn",t>=540&&t<600);clock.classList.toggle("over",t>=600);}
+function toggleTimer(){if(timer){clearInterval(timer);timer=null;startBtn.textContent="Старт";}else{timer=setInterval(()=>{t++;fmt();},1000);startBtn.textContent="Пауза";}}
+startBtn.onclick=toggleTimer;$("#resetBtn").onclick=()=>{clearInterval(timer);timer=null;t=0;fmt();startBtn.textContent="Старт";};
+
+document.addEventListener("keydown",e=>{
+  const tag=(e.target.tagName||"").toLowerCase();if(tag==="input")return;
+  if(e.key==="ArrowRight")go(cur+1);
+  else if(e.key==="ArrowLeft")go(cur-1);
+  else if(e.key===" "){e.preventDefault();revealBtn.click();}
+  else if(e.key.toLowerCase()==="s"){e.preventDefault();toggleTimer();}
+});
+render();fmt();
+</script>
+</body>
+</html>
